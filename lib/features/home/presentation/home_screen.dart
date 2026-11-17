@@ -2,7 +2,9 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../recipes/models/recipe.dart';
 import '../../recipes/presentation/recipe_card.dart';
+import '../../recipes/presentation/recipe_details_screen.dart';
 import 'home_view_model.dart';
 import 'widgets/progress_card.dart';
 
@@ -82,12 +84,20 @@ class HomeScreen extends StatelessWidget {
             final recipe = viewModel.recipes[index];
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              // Navigation is wired in MP-05; until then the card is not tappable.
-              child: RecipeCard(recipe: recipe),
+              child: RecipeCard(
+                recipe: recipe,
+                onTap: () => _openDetails(context, recipe),
+              ),
             );
           },
         );
     }
+  }
+
+  void _openDetails(BuildContext context, Recipe recipe) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => RecipeDetailsScreen(recipe: recipe)),
+    );
   }
 
   Widget _buildNav() {

@@ -30,11 +30,11 @@ class MockRecipeRepository implements RecipeRepository {
       carbsG: 58,
       fatG: 20,
       ingredients: [
-        Ingredient(name: 'Chicken breasts', amount: '250 g'),
-        Ingredient(name: 'Unsalted butter', amount: '1 tbsp'),
-        Ingredient(name: 'Sesame or vegetable oil', amount: '2 tsp'),
-        Ingredient(name: 'Fresh ginger', amount: '2 tsp'),
-        Ingredient(name: 'Large eggs', amount: '100 g'),
+        Ingredient(name: 'Chicken breasts', amountPerServe: 125, unit: 'g'),
+        Ingredient(name: 'Unsalted butter', amountPerServe: 0.5, unit: 'tbsp'),
+        Ingredient(name: 'Sesame or vegetable oil', amountPerServe: 1, unit: 'tsp'),
+        Ingredient(name: 'Fresh ginger', amountPerServe: 1, unit: 'tsp'),
+        Ingredient(name: 'Large eggs', amountPerServe: 50, unit: 'g'),
       ],
     ),
     Recipe(
@@ -48,10 +48,10 @@ class MockRecipeRepository implements RecipeRepository {
       carbsG: 22,
       fatG: 12,
       ingredients: [
-        Ingredient(name: 'Salmon fillet', amount: '180 g'),
-        Ingredient(name: 'Spinach', amount: '100 g'),
-        Ingredient(name: 'Shredded carrot', amount: '50 g'),
-        Ingredient(name: 'Lemon', amount: '1/2 pc'),
+        Ingredient(name: 'Salmon fillet', amountPerServe: 90, unit: 'g'),
+        Ingredient(name: 'Spinach', amountPerServe: 50, unit: 'g'),
+        Ingredient(name: 'Shredded carrot', amountPerServe: 25, unit: 'g'),
+        Ingredient(name: 'Lemon', amountPerServe: 0.5, unit: 'pc'),
       ],
     ),
     Recipe(
@@ -65,10 +65,10 @@ class MockRecipeRepository implements RecipeRepository {
       carbsG: 30,
       fatG: 14,
       ingredients: [
-        Ingredient(name: 'Chicken thigh', amount: '300 g'),
-        Ingredient(name: 'Bell pepper', amount: '1 pc'),
-        Ingredient(name: 'Red onion', amount: '1 pc'),
-        Ingredient(name: 'Olive oil', amount: '2 tbsp'),
+        Ingredient(name: 'Chicken thigh', amountPerServe: 150, unit: 'g'),
+        Ingredient(name: 'Bell pepper', amountPerServe: 0.5, unit: 'pc'),
+        Ingredient(name: 'Red onion', amountPerServe: 0.5, unit: 'pc'),
+        Ingredient(name: 'Olive oil', amountPerServe: 1, unit: 'tbsp'),
       ],
     ),
     Recipe(
@@ -82,10 +82,10 @@ class MockRecipeRepository implements RecipeRepository {
       carbsG: 38,
       fatG: 8,
       ingredients: [
-        Ingredient(name: 'Tofu', amount: '150 g'),
-        Ingredient(name: 'Broccoli', amount: '120 g'),
-        Ingredient(name: 'Soy sauce', amount: '1 tbsp'),
-        Ingredient(name: 'Sesame seeds', amount: '1 tsp'),
+        Ingredient(name: 'Tofu', amountPerServe: 75, unit: 'g'),
+        Ingredient(name: 'Broccoli', amountPerServe: 60, unit: 'g'),
+        Ingredient(name: 'Soy sauce', amountPerServe: 0.5, unit: 'tbsp'),
+        Ingredient(name: 'Sesame seeds', amountPerServe: 0.5, unit: 'tsp'),
       ],
     ),
     Recipe(
@@ -99,10 +99,10 @@ class MockRecipeRepository implements RecipeRepository {
       carbsG: 72,
       fatG: 12,
       ingredients: [
-        Ingredient(name: 'Penne', amount: '200 g'),
-        Ingredient(name: 'Cherry tomatoes', amount: '100 g'),
-        Ingredient(name: 'Parmesan', amount: '30 g'),
-        Ingredient(name: 'Basil', amount: '5 leaves'),
+        Ingredient(name: 'Penne', amountPerServe: 100, unit: 'g'),
+        Ingredient(name: 'Cherry tomatoes', amountPerServe: 50, unit: 'g'),
+        Ingredient(name: 'Parmesan', amountPerServe: 15, unit: 'g'),
+        Ingredient(name: 'Basil', amountPerServe: 2.5, unit: 'leaves'),
       ],
     ),
     Recipe(
@@ -116,10 +116,10 @@ class MockRecipeRepository implements RecipeRepository {
       carbsG: 30,
       fatG: 16,
       ingredients: [
-        Ingredient(name: 'Bread slice', amount: '2 pcs'),
-        Ingredient(name: 'Avocado', amount: '1 pc'),
-        Ingredient(name: 'Egg', amount: '1 pc'),
-        Ingredient(name: 'Chili flakes', amount: '1 pinch'),
+        Ingredient(name: 'Bread slice', amountPerServe: 1, unit: 'pc'),
+        Ingredient(name: 'Avocado', amountPerServe: 0.5, unit: 'pc'),
+        Ingredient(name: 'Egg', amountPerServe: 0.5, unit: 'pc'),
+        Ingredient(name: 'Chili flakes', amountPerServe: 0.5, unit: 'pinch'),
       ],
     ),
   ];

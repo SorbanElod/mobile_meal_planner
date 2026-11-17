@@ -1,9 +1,25 @@
-/// Immutable ingredient row: name left, amount right (e.g. "250 g").
+/// Immutable ingredient row: name left, scaled amount right (e.g. "250 g"
+/// for 2 serves). Amounts are stored per serve so the serves stepper can
+/// recompute them.
 class Ingredient {
   final String name;
-  final String amount;
+  final double amountPerServe;
+  final String unit;
 
-  const Ingredient({required this.name, required this.amount});
+  const Ingredient({
+    required this.name,
+    required this.amountPerServe,
+    required this.unit,
+  });
+
+  /// Display amount for [serves] people, e.g. "250 g" or "1.5 tbsp".
+  String amountFor(int serves) {
+    final value = amountPerServe * serves;
+    final formatted = (value % 1 == 0)
+        ? value.toInt().toString()
+        : value.toStringAsFixed(1);
+    return '$formatted $unit';
+  }
 }
 
 /// Data model for a recipe. All fields are final and the constructor is
