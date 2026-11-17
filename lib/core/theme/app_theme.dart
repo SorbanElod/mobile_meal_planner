@@ -8,7 +8,7 @@ abstract final class AppRadius {
   static const sm = BorderRadius.all(Radius.circular(8)); // stepper box
   static const md = BorderRadius.all(Radius.circular(16)); // cards, buttons
   static const lg = BorderRadius.all(Radius.circular(24)); // bottom sheet top
-  static final full = BorderRadius.circular(999); // avatars, rings
+  static const full = BorderRadius.all(Radius.circular(999)); // avatars, rings
 }
 
 /// App-wide [ThemeData] + [TextTheme] built from the tokens.
