@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../favorites/presentation/favorites_screen.dart';
 import '../../recipes/models/recipe.dart';
 import '../../recipes/presentation/recipe_card.dart';
 import '../../recipes/presentation/recipe_details_screen.dart';
@@ -32,23 +33,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            children: [
-              const _Header(),
-              const SizedBox(height: AppSpacing.md),
-              const ProgressCard(
-                calories: 1284,
-                fatPct: 0.29,
-                proPct: 0.65,
-                carbPct: 0.85,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Expanded(child: _buildList(recipesAsync)),
-            ],
-          ),
+          child: _buildBody(recipesAsync),
         ),
       ),
       bottomNavigationBar: _buildNav(),
+    );
+  }
+
+  /// Tab 0 = Home, tab 4 = Favorites; the other tabs are placeholders.
+  Widget _buildBody(AsyncValue<List<Recipe>> recipesAsync) {
+    if (_selectedTabIndex == 4) return const FavoritesScreen();
+    if (_selectedTabIndex != 0) {
+      return const Center(child: Text('Coming soon'));
+    }
+    return Column(
+      children: [
+        const _Header(),
+        const SizedBox(height: AppSpacing.md),
+        const ProgressCard(
+          calories: 1284,
+          fatPct: 0.29,
+          proPct: 0.65,
+          carbPct: 0.85,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Expanded(child: _buildList(recipesAsync)),
+      ],
     );
   }
 
@@ -132,6 +142,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         BottomNavigationBarItem(
           icon: Icon(Icons.chat_bubble_outline),
           label: 'Chat',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.favorite_border),
+          label: 'Favorites',
         ),
       ],
     );

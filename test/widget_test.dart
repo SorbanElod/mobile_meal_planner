@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:mobile_meal_planner/core/theme/app_theme.dart';
+import 'package:mobile_meal_planner/core/widgets/favorite_button.dart';
+import 'package:mobile_meal_planner/features/favorites/data/favorites_repository.dart';
+import 'package:mobile_meal_planner/features/favorites/providers/favorites_provider.dart';
 import 'package:mobile_meal_planner/features/recipes/data/recipe_repository.dart';
 import 'package:mobile_meal_planner/features/recipes/models/recipe.dart';
 import 'package:mobile_meal_planner/features/recipes/presentation/recipe_card.dart';
@@ -36,8 +39,25 @@ class FakeRecipeRepository implements RecipeRepository {
   }
 }
 
-Widget wrapApp() => ProviderScope(
-  overrides: [recipeRepositoryProvider.overrideWithValue(FakeRecipeRepository())],
+/// In-memory favorites storage for tests — proves the save/load contract
+/// without touching platform channels.
+class InMemoryFavoritesRepository implements FavoritesRepository {
+  Set<String> saved = const {};
+
+  @override
+  Future<Set<String>> loadFavorites() async => saved;
+
+  @override
+  Future<void> saveFavorites(Set<String> ids) async => saved = ids;
+}
+
+Widget wrapApp({FavoritesRepository? favorites}) => ProviderScope(
+  overrides: [
+    recipeRepositoryProvider.overrideWithValue(FakeRecipeRepository()),
+    favoritesRepositoryProvider.overrideWithValue(
+      favorites ?? InMemoryFavoritesRepository(),
+    ),
+  ],
   child: const MealPlannerApp(),
 );
 
@@ -92,17 +112,24 @@ void main() {
       ],
     );
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.lightTheme,
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => RecipeDetailsScreen(recipe: recipe),
+      ProviderScope(
+        overrides: [
+          favoritesRepositoryProvider.overrideWithValue(
+            InMemoryFavoritesRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => RecipeDetailsScreen(recipe: recipe),
+                  ),
                 ),
+                child: const Text('open'),
               ),
-              child: const Text('open'),
             ),
           ),
         ),
@@ -126,5 +153,31 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
     expect(find.text('open'), findsOneWidget);
+  });
+
+  testWidgets('Favorite toggle is shared: card heart → Favorites tab', (tester) async {
+    final favorites = InMemoryFavoritesRepository();
+    await tester.pumpWidget(wrapApp(favorites: favorites));
+    await tester.pumpAndSettle();
+
+    // Heart on the first card starts empty.
+    expect(find.byIcon(Icons.favorite), findsNothing);
+    await tester.tap(find.byType(FavoriteButton).first);
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.favorite), findsOneWidget); // filled heart
+    expect(favorites.saved, contains('1')); // persisted via the repository
+
+    // Switch to the Favorites tab — the same shared state shows the recipe.
+    // (Cards are image-only per the Figma design, so assert on the card widget.)
+    await tester.tap(find.text('Favorites'));
+    await tester.pumpAndSettle();
+    expect(find.byType(RecipeCard), findsOneWidget);
+    expect(find.byIcon(Icons.favorite), findsOneWidget);
+
+    // Untoggle from the Favorites card → empty state appears.
+    await tester.tap(find.byType(FavoriteButton).first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('No favorites yet'), findsOneWidget);
+    expect(favorites.saved, isEmpty);
   });
 }

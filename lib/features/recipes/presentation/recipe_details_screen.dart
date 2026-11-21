@@ -1,31 +1,38 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/favorite_button.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../favorites/providers/favorites_provider.dart';
 import '../models/recipe.dart';
 
-/// Recipe Details: hero image with back button, bottom sheet with title,
-/// nutrition stats, scalable ingredients, instructions and the Start cooking
-/// button. Works for any recipe — the (API-loaded) record arrives via the
-/// constructor, so the screen stays parameterized and stateless re data.
-class RecipeDetailsScreen extends StatefulWidget {
+/// Recipe Details: hero image with back + favorite buttons, bottom sheet with
+/// title, nutrition stats, scalable ingredients, instructions and the Start
+/// cooking button. Works for any recipe — the (API-loaded) record arrives via
+/// the constructor, so the screen stays parameterized and stateless re data.
+/// The heart reflects the shared favorites state, same as on Home.
+class RecipeDetailsScreen extends ConsumerStatefulWidget {
   final Recipe recipe;
 
   const RecipeDetailsScreen({super.key, required this.recipe});
 
   @override
-  State<RecipeDetailsScreen> createState() => _RecipeDetailsScreenState();
+  ConsumerState<RecipeDetailsScreen> createState() => _RecipeDetailsScreenState();
 }
 
-class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
-  int _serves = 2; // local UI state: only this screen's stepper changes it
+class _RecipeDetailsScreenState extends ConsumerState<RecipeDetailsScreen> {
+  int _serves = 2; // ephemeral state: only this screen's stepper changes it
 
   Recipe get _recipe => widget.recipe;
 
   @override
   Widget build(BuildContext context) {
+    final isFavorite = ref.watch(
+      favoritesProvider.select((fav) => fav.value?.contains(_recipe.id) ?? false),
+    );
     return Scaffold(
       body: Column(
         children: [
@@ -50,12 +57,23 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                 Positioned(
                   top: AppSpacing.sm,
                   right: AppSpacing.sm,
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.more_horiz,
-                      color: AppColors.textPrimary,
-                    ),
-                    onPressed: () {},
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FavoriteButton(
+                        isFavorite: isFavorite,
+                        onTap: () => ref
+                            .read(favoritesProvider.notifier)
+                            .toggle(_recipe.id),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.more_horiz,
+                          color: AppColors.textPrimary,
+                        ),
+                        onPressed: () {},
+                      ),
+                    ],
                   ),
                 ),
               ],
