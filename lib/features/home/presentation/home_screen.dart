@@ -1,100 +1,109 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/errors/app_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../recipes/models/recipe.dart';
 import '../../recipes/presentation/recipe_card.dart';
 import '../../recipes/presentation/recipe_details_screen.dart';
-import 'home_view_model.dart';
+import '../../recipes/providers/recipes_provider.dart';
 import 'widgets/progress_card.dart';
 
 /// Home screen: header, progress card, scrollable recipe list, bottom nav.
-/// Renders [HomeViewModel] state and forwards actions to it — it never
-/// talks to the data layer directly.
-class HomeScreen extends StatelessWidget {
-  final HomeViewModel viewModel;
+/// Renders [recipesProvider]'s AsyncValue (loading / error / empty / success)
+/// and forwards actions (retry, open details) — it never talks to the data
+/// layer directly.
+class HomeScreen extends ConsumerStatefulWidget {
+  const HomeScreen({super.key});
 
-  const HomeScreen({super.key, required this.viewModel});
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // Ephemeral state: only this widget's bottom nav uses it (deck p. 10).
+  int _selectedTabIndex = 0;
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: viewModel,
-      builder: (context, _) => Scaffold(
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              children: [
-                const _Header(),
-                const SizedBox(height: AppSpacing.md),
-                const ProgressCard(
-                  calories: 1284,
-                  fatPct: 0.29,
-                  proPct: 0.65,
-                  carbPct: 0.85,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Expanded(child: _buildList(context)),
-              ],
-            ),
+    final recipesAsync = ref.watch(recipesProvider);
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            children: [
+              const _Header(),
+              const SizedBox(height: AppSpacing.md),
+              const ProgressCard(
+                calories: 1284,
+                fatPct: 0.29,
+                proPct: 0.65,
+                carbPct: 0.85,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Expanded(child: _buildList(recipesAsync)),
+            ],
           ),
         ),
-        bottomNavigationBar: _buildNav(),
       ),
+      bottomNavigationBar: _buildNav(),
     );
   }
 
-  Widget _buildList(BuildContext context) {
-    switch (viewModel.status) {
-      case HomeStatus.loading:
-        return const Center(child: CircularProgressIndicator());
-      case HomeStatus.error:
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                viewModel.errorMessage ?? 'Something went wrong',
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              ElevatedButton(
-                onPressed: viewModel.loadRecipes,
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        );
-      case HomeStatus.empty:
-        return Center(
-          child: Text(
-            'No recipes match your preferences yet',
-            style: Theme.of(context).textTheme.bodyMedium,
-            textAlign: TextAlign.center,
-          ),
-        );
-      case HomeStatus.success:
+  /// UI = f(State): each AsyncValue branch declares what the list looks like
+  /// in that state (deck p. 9, p. 99–101).
+  Widget _buildList(AsyncValue<List<Recipe>> recipesAsync) {
+    return recipesAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              error is AppException ? error.userMessage : 'Something went wrong',
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            ElevatedButton(
+              onPressed: () => ref.read(recipesProvider.notifier).refresh(),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+      data: (recipes) {
+        if (recipes.isEmpty) {
+          return Center(
+            child: Text(
+              'No recipes found. Try another search.',
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          );
+        }
         return ListView.builder(
           // Android-style clamp: no rubber-band overscroll at the list ends.
           physics: const ClampingScrollPhysics(),
-          itemCount: viewModel.recipes.length,
+          itemCount: recipes.length,
           itemBuilder: (context, index) {
-            final recipe = viewModel.recipes[index];
+            final recipe = recipes[index];
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.md),
               child: RecipeCard(
                 recipe: recipe,
-                onTap: () => _openDetails(context, recipe),
+                onTap: () => _openDetails(recipe),
               ),
             );
           },
         );
-    }
+      },
+    );
   }
 
-  void _openDetails(BuildContext context, Recipe recipe) {
+  void _openDetails(Recipe recipe) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => RecipeDetailsScreen(recipe: recipe)),
     );
@@ -103,8 +112,8 @@ class HomeScreen extends StatelessWidget {
   Widget _buildNav() {
     return BottomNavigationBar(
       type: BottomNavigationBarType.fixed,
-      currentIndex: viewModel.selectedTabIndex,
-      onTap: viewModel.selectTab,
+      currentIndex: _selectedTabIndex,
+      onTap: (index) => setState(() => _selectedTabIndex = index),
       selectedItemColor: AppColors.textPrimary,
       unselectedItemColor: AppColors.textSecondary,
       items: const [

@@ -1,21 +1,17 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'core/theme/app_theme.dart';
 import 'features/home/presentation/home_screen.dart';
-import 'features/home/presentation/home_view_model.dart';
-import 'features/recipes/data/recipe_repository.dart';
 
 void main() {
-  // Composition root: build the object graph, start the initial load.
-  final homeViewModel = HomeViewModel(repository: MockRecipeRepository());
-  homeViewModel.loadRecipes();
-  runApp(MealPlannerApp(homeViewModel: homeViewModel));
+  // Riverpod owns the object graph now: ProviderScope at the root, screens
+  // read their state via ref.watch (no manual composition root anymore).
+  runApp(const ProviderScope(child: MealPlannerApp()));
 }
 
 class MealPlannerApp extends StatelessWidget {
-  final HomeViewModel homeViewModel;
-
-  const MealPlannerApp({super.key, required this.homeViewModel});
+  const MealPlannerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +20,7 @@ class MealPlannerApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       scrollBehavior: const _ClampScrollBehavior(),
-      home: HomeScreen(viewModel: homeViewModel),
+      home: const HomeScreen(),
     );
   }
 }

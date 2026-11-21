@@ -34,17 +34,7 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image(
-                  image: _imageProvider(_recipe.imageUrl),
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: AppColors.bubble,
-                    child: const Icon(
-                      Icons.restaurant_menu,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
+                _buildHeroImage(_recipe.imageUrl),
                 Positioned(
                   top: AppSpacing.sm,
                   left: AppSpacing.sm,
@@ -121,11 +111,28 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
     );
   }
 
-  static ImageProvider _imageProvider(String imageUrl) {
+  /// Network URL from the API or a bundled asset; missing/failed → placeholder.
+  static Widget _buildHeroImage(String? imageUrl) {
+    final provider = _imageProvider(imageUrl);
+    if (provider == null) return _placeholder();
+    return Image(
+      image: provider,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => _placeholder(),
+    );
+  }
+
+  static ImageProvider? _imageProvider(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) return null;
     return imageUrl.startsWith('assets/')
         ? AssetImage(imageUrl)
         : NetworkImage(imageUrl);
   }
+
+  static Widget _placeholder() => Container(
+    color: AppColors.bubble,
+    child: const Icon(Icons.restaurant_menu, color: AppColors.textSecondary),
+  );
 }
 
 class _TitleRow extends StatelessWidget {
@@ -169,13 +176,17 @@ class _NutritionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _NutritionStat(value: '${recipe.energyKcal} k', label: 'Energy'),
-        _NutritionStat(value: '${recipe.proteinG} g', label: 'Protein'),
-        _NutritionStat(value: '${recipe.carbsG} g', label: 'Carbs'),
-        _NutritionStat(value: '${recipe.fatG} g', label: 'Fat'),
+        // TheMealDB has no nutrition data → show "N/A", never a fake 0 (deck p. 78).
+        _NutritionStat(value: _stat(recipe.energyKcal, 'k'), label: 'Energy'),
+        _NutritionStat(value: _stat(recipe.proteinG, 'g'), label: 'Protein'),
+        _NutritionStat(value: _stat(recipe.carbsG, 'g'), label: 'Carbs'),
+        _NutritionStat(value: _stat(recipe.fatG, 'g'), label: 'Fat'),
       ],
     );
   }
+
+  static String _stat(int? value, String unit) =>
+      value != null ? '$value $unit' : 'N/A';
 }
 
 class _NutritionStat extends StatelessWidget {

@@ -25,19 +25,7 @@ class RecipeCard extends StatelessWidget {
             borderRadius: AppRadius.md,
             child: AspectRatio(
               aspectRatio: 16 / 9,
-              child: Image(
-                image: _imageProvider(recipe.imageUrl),
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: double.infinity,
-                  color: AppColors.bubble,
-                  child: const Icon(
-                    Icons.restaurant_menu,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
+              child: _buildImage(recipe.imageUrl),
             ),
           ),
           const Positioned(
@@ -50,10 +38,29 @@ class RecipeCard extends StatelessWidget {
     );
   }
 
-  /// Bundled assets for mock data, network URLs for a real API later.
-  static ImageProvider _imageProvider(String imageUrl) {
+  /// Network URLs from the API, bundled assets for local data; a missing
+  /// image (null/empty, deck p. 76) or a failed load both get a placeholder.
+  static Widget _buildImage(String? imageUrl) {
+    final provider = _imageProvider(imageUrl);
+    if (provider == null) return _placeholder();
+    return Image(
+      image: provider,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => _placeholder(),
+    );
+  }
+
+  static ImageProvider? _imageProvider(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) return null;
     return imageUrl.startsWith('assets/')
         ? AssetImage(imageUrl)
         : NetworkImage(imageUrl);
   }
+
+  static Widget _placeholder() => Container(
+    width: double.infinity,
+    color: AppColors.bubble,
+    child: const Icon(Icons.restaurant_menu, color: AppColors.textSecondary),
+  );
 }
