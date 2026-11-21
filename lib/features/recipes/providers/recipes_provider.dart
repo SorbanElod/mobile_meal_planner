@@ -37,3 +37,10 @@ class RecipesNotifier extends AsyncNotifier<List<Recipe>> {
 final recipesProvider = AsyncNotifierProvider<RecipesNotifier, List<Recipe>>(
   RecipesNotifier.new,
 );
+
+/// Full record for one recipe by id — `lookup.php?i=…` (deck p. 86).
+/// Used wherever only an id is available, e.g. the Favorites screen.
+/// FutureProvider gives loading/data/error for free (deck p. 68).
+final recipeDetailsProvider = FutureProvider.family<Recipe?, String>(
+  (ref, id) => ref.watch(recipeRepositoryProvider).getRecipeById(id),
+);

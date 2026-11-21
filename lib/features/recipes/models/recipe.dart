@@ -28,7 +28,8 @@ class Ingredient {
   }
 
   static final _measurePattern = RegExp(
-    r'^(\d+(?:\.\d+)?|\d+\s*/\s*\d+|½|¼|¾)\s*(.*)$',
+    // Fraction alternative first, otherwise "3/4" matches as plain "3".
+    r'^(\d+\s*/\s*\d+|\d+(?:\.\d+)?|½|¼|¾)\s*(.*)$',
   );
 
   static double _parseNumber(String raw) {
@@ -43,14 +44,15 @@ class Ingredient {
     return double.tryParse(raw) ?? 0;
   }
 
-  /// Display amount for [serves] people, e.g. "250 g" or "1.5 tbsp".
+  /// Display amount for [serves] people, e.g. "250 g", "1.5 tbsp", "0.75 cup".
   /// Non-scalable measures ("pinch") are returned verbatim.
   String amountFor(int serves) {
     if (amountPerServe == 0) return unit;
     final value = amountPerServe * serves;
-    final formatted = (value % 1 == 0)
-        ? value.toInt().toString()
-        : value.toStringAsFixed(1);
+    // Up to 2 decimals, trailing zeros stripped: 2 → "2", 2.5 → "2.5", 0.75 → "0.75".
+    final formatted = value
+        .toStringAsFixed(2)
+        .replaceAll(RegExp(r'\.?0+$'), '');
     return unit.isEmpty ? formatted : '$formatted $unit';
   }
 }

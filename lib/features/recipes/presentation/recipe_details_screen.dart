@@ -7,8 +7,9 @@ import '../../../core/widgets/primary_button.dart';
 import '../models/recipe.dart';
 
 /// Recipe Details: hero image with back button, bottom sheet with title,
-/// nutrition stats, scalable ingredients and the Start cooking button.
-/// Works for any recipe — data arrives via the constructor.
+/// nutrition stats, scalable ingredients, instructions and the Start cooking
+/// button. Works for any recipe — the (API-loaded) record arrives via the
+/// constructor, so the screen stays parameterized and stateless re data.
 class RecipeDetailsScreen extends StatefulWidget {
   final Recipe recipe;
 
@@ -86,19 +87,7 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                       onServesChanged: (v) => setState(() => _serves = v),
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    Expanded(
-                      child: ListView.builder(
-                        physics: const ClampingScrollPhysics(),
-                        itemCount: _recipe.ingredients.length,
-                        itemBuilder: (context, index) {
-                          final ingredient = _recipe.ingredients[index];
-                          return _IngredientRow(
-                            name: ingredient.name,
-                            amount: ingredient.amountFor(_serves),
-                          );
-                        },
-                      ),
-                    ),
+                    Expanded(child: _buildIngredientsAndInstructions()),
                     const SizedBox(height: AppSpacing.md),
                     PrimaryButton(label: 'Start cooking', onPressed: () {}),
                   ],
@@ -108,6 +97,36 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Ingredients (scaled by the serves stepper) followed by the instructions
+  /// block — all from the API record. Falls back to a message when the API
+  /// record has neither (null-safety, deck p. 76–78).
+  Widget _buildIngredientsAndInstructions() {
+    final hasInstructions = _recipe.instructions != null;
+    final itemCount = _recipe.ingredients.length + (hasInstructions ? 1 : 0);
+    if (itemCount == 0) {
+      return Center(
+        child: Text(
+          'No details available for this recipe.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      );
+    }
+    return ListView.builder(
+      physics: const ClampingScrollPhysics(),
+      itemCount: itemCount,
+      itemBuilder: (context, index) {
+        if (index < _recipe.ingredients.length) {
+          final ingredient = _recipe.ingredients[index];
+          return _IngredientRow(
+            name: ingredient.name,
+            amount: ingredient.amountFor(_serves),
+          );
+        }
+        return _InstructionsBlock(text: _recipe.instructions!);
+      },
     );
   }
 
@@ -257,6 +276,27 @@ class _IngredientsHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _InstructionsBlock extends StatelessWidget {
+  final String text;
+  const _InstructionsBlock({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Instructions', style: textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.sm),
+          Text(text, style: textTheme.bodyMedium),
+        ],
+      ),
     );
   }
 }
