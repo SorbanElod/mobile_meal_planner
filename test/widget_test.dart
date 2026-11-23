@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:mobile_meal_planner/core/theme/app_theme.dart';
+import 'package:mobile_meal_planner/core/widgets/favorite_button.dart';
+import 'package:mobile_meal_planner/features/favorites/data/favorites_repository.dart';
+import 'package:mobile_meal_planner/features/favorites/providers/favorites_provider.dart';
 import 'package:mobile_meal_planner/features/recipes/data/recipe_repository.dart';
 import 'package:mobile_meal_planner/features/recipes/models/recipe.dart';
 import 'package:mobile_meal_planner/features/recipes/presentation/recipe_card.dart';
@@ -14,6 +17,10 @@ import 'package:mobile_meal_planner/main.dart';
 /// In-memory repository for tests — provider overriding (deck p. 26) means
 /// no real network in widget tests.
 class FakeRecipeRepository implements RecipeRepository {
+  final bool fromCache;
+
+  const FakeRecipeRepository({this.fromCache = false});
+
   static const recipes = <Recipe>[
     Recipe(
       id: '1',
@@ -25,9 +32,9 @@ class FakeRecipeRepository implements RecipeRepository {
   ];
 
   @override
-  Future<List<Recipe>> getRecipes({String query = '', CancelToken? cancelToken}) async {
-    if (query == 'zzz') return const []; // simulate "no results"
-    return recipes;
+  Future<RecipesResult> getRecipes({String query = '', CancelToken? cancelToken}) async {
+    if (query == 'zzz') return const RecipesResult([]); // simulate "no results"
+    return RecipesResult(recipes, fromCache: fromCache);
   }
 
   @override
@@ -36,10 +43,30 @@ class FakeRecipeRepository implements RecipeRepository {
   }
 }
 
-Widget wrapApp() => ProviderScope(
-  overrides: [recipeRepositoryProvider.overrideWithValue(FakeRecipeRepository())],
-  child: const MealPlannerApp(),
-);
+/// In-memory favorites storage for tests — proves the save/load contract
+/// without touching platform channels.
+class InMemoryFavoritesRepository implements FavoritesRepository {
+  Set<String> saved = const {};
+
+  @override
+  Future<Set<String>> loadFavorites() async => saved;
+
+  @override
+  Future<void> saveFavorites(Set<String> ids) async => saved = ids;
+}
+
+Widget wrapApp({FavoritesRepository? favorites, bool fromCache = false}) =>
+    ProviderScope(
+      overrides: [
+        recipeRepositoryProvider.overrideWithValue(
+          FakeRecipeRepository(fromCache: fromCache),
+        ),
+        favoritesRepositoryProvider.overrideWithValue(
+          favorites ?? InMemoryFavoritesRepository(),
+        ),
+      ],
+      child: const MealPlannerApp(),
+    );
 
 void main() {
   testWidgets('Home shows loading, then all recipes', (tester) async {
@@ -55,19 +82,26 @@ void main() {
     // 360x800 logical px (physical 1080x2400 at dpr 3.0)
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(wrapApp());
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    tester.view.resetPhysicalSize();
-    tester.view.resetDevicePixelRatio();
   });
 
   testWidgets('Tap recipe card opens details, back returns home', (tester) async {
+    // Phone-sized surface (360x800 @ dpr 3) so the first card is fully visible.
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(wrapApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(RecipeCard).first);
+    // Tap the first card's photo (its caption can be below the 600px test fold).
+    await tester.tap(find.byType(ClipRRect).first);
     await tester.pumpAndSettle();
+    expect(find.byType(RecipeDetailsScreen), findsOneWidget); // details opened
     expect(find.text('Chicken Pasta'), findsOneWidget); // details of the tapped recipe
     expect(find.text('Chicken'), findsOneWidget); // subtitle from category
 
@@ -78,6 +112,10 @@ void main() {
   });
 
   testWidgets('Details shows recipe data, stepper scales, back pops', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     const recipe = Recipe(
       id: '1',
       title: 'Ramen',
@@ -92,17 +130,24 @@ void main() {
       ],
     );
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.lightTheme,
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => RecipeDetailsScreen(recipe: recipe),
+      ProviderScope(
+        overrides: [
+          favoritesRepositoryProvider.overrideWithValue(
+            InMemoryFavoritesRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => RecipeDetailsScreen(recipe: recipe),
+                  ),
                 ),
+                child: const Text('open'),
               ),
-              child: const Text('open'),
             ),
           ),
         ),
@@ -126,5 +171,58 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
     expect(find.text('open'), findsOneWidget);
+    expect(tester.takeException(), isNull); // no overflow at 360 px
+  });
+
+  testWidgets('Search debounces, filters, and empty result shows empty state', (tester) async {
+    await tester.pumpWidget(wrapApp());
+    await tester.pumpAndSettle();
+    expect(find.byType(RecipeCard), findsWidgets);
+
+    // Type a query with no matches; the fake repo returns [] for 'zzz'.
+    await tester.enterText(find.byType(TextField), 'zzz');
+    await tester.pump(const Duration(milliseconds: 400)); // > 300ms debounce
+    await tester.pumpAndSettle();
+    expect(find.text('No recipes found. Try another search.'), findsOneWidget);
+    expect(find.byType(RecipeCard), findsNothing);
+
+    // Clearing the search restores the default list.
+    await tester.enterText(find.byType(TextField), '');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(find.byType(RecipeCard), findsWidgets);
+  });
+
+  testWidgets('Offline banner shows when the list is served from cache', (tester) async {
+    await tester.pumpWidget(wrapApp(fromCache: true));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('offline'), findsOneWidget); // banner
+    expect(find.byType(RecipeCard), findsWidgets); // cached list still shown
+  });
+
+  testWidgets('Favorite toggle is shared: card heart → Favorites tab', (tester) async {
+    final favorites = InMemoryFavoritesRepository();
+    await tester.pumpWidget(wrapApp(favorites: favorites));
+    await tester.pumpAndSettle();
+
+    // Heart on the first card starts empty.
+    expect(find.byIcon(Icons.favorite), findsNothing);
+    await tester.tap(find.byType(FavoriteButton).first);
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.favorite), findsOneWidget); // filled heart
+    expect(favorites.saved, contains('1')); // persisted via the repository
+
+    // Switch to the Favorites tab — the same shared state shows the recipe.
+    // (Cards are image-only per the Figma design, so assert on the card widget.)
+    await tester.tap(find.text('Favorites'));
+    await tester.pumpAndSettle();
+    expect(find.byType(RecipeCard), findsOneWidget);
+    expect(find.byIcon(Icons.favorite), findsOneWidget);
+
+    // Untoggle from the Favorites card → empty state appears.
+    await tester.tap(find.byType(FavoriteButton).first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('No favorites yet'), findsOneWidget);
+    expect(favorites.saved, isEmpty);
   });
 }

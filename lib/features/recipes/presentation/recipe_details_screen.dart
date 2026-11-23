@@ -1,30 +1,39 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/favorite_button.dart';
+import '../../../core/widgets/overlay_icon_button.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../favorites/providers/favorites_provider.dart';
 import '../models/recipe.dart';
 
-/// Recipe Details: hero image with back button, bottom sheet with title,
-/// nutrition stats, scalable ingredients and the Start cooking button.
-/// Works for any recipe — data arrives via the constructor.
-class RecipeDetailsScreen extends StatefulWidget {
+/// Recipe Details: hero image with back + favorite buttons, bottom sheet with
+/// title, nutrition stats, scalable ingredients, instructions and the Start
+/// cooking button. Works for any recipe — the (API-loaded) record arrives via
+/// the constructor, so the screen stays parameterized and stateless re data.
+/// The heart reflects the shared favorites state, same as on Home.
+class RecipeDetailsScreen extends ConsumerStatefulWidget {
   final Recipe recipe;
 
   const RecipeDetailsScreen({super.key, required this.recipe});
 
   @override
-  State<RecipeDetailsScreen> createState() => _RecipeDetailsScreenState();
+  ConsumerState<RecipeDetailsScreen> createState() => _RecipeDetailsScreenState();
 }
 
-class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
-  int _serves = 2; // local UI state: only this screen's stepper changes it
+class _RecipeDetailsScreenState extends ConsumerState<RecipeDetailsScreen> {
+  int _serves = 2; // ephemeral state: only this screen's stepper changes it
 
   Recipe get _recipe => widget.recipe;
 
   @override
   Widget build(BuildContext context) {
+    final isFavorite = ref.watch(
+      favoritesProvider.select((fav) => fav.value?.contains(_recipe.id) ?? false),
+    );
     return Scaffold(
       body: Column(
         children: [
@@ -35,26 +44,41 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
               fit: StackFit.expand,
               children: [
                 _buildHeroImage(_recipe.imageUrl),
+                // SafeArea keeps the controls below the status bar; the
+                // image itself stays edge-to-edge underneath.
                 Positioned(
-                  top: AppSpacing.sm,
-                  left: AppSpacing.sm,
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      color: AppColors.textPrimary,
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          OverlayIconButton(
+                            icon: Icons.arrow_back,
+                            onTap: () => Navigator.of(context).pop(),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              FavoriteButton(
+                                isFavorite: isFavorite,
+                                onTap: () => ref
+                                    .read(favoritesProvider.notifier)
+                                    .toggle(_recipe.id),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              OverlayIconButton(
+                                icon: Icons.more_horiz,
+                                onTap: () {},
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ),
-                Positioned(
-                  top: AppSpacing.sm,
-                  right: AppSpacing.sm,
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.more_horiz,
-                      color: AppColors.textPrimary,
-                    ),
-                    onPressed: () {},
                   ),
                 ),
               ],
@@ -86,19 +110,7 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                       onServesChanged: (v) => setState(() => _serves = v),
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    Expanded(
-                      child: ListView.builder(
-                        physics: const ClampingScrollPhysics(),
-                        itemCount: _recipe.ingredients.length,
-                        itemBuilder: (context, index) {
-                          final ingredient = _recipe.ingredients[index];
-                          return _IngredientRow(
-                            name: ingredient.name,
-                            amount: ingredient.amountFor(_serves),
-                          );
-                        },
-                      ),
-                    ),
+                    Expanded(child: _buildIngredientsAndInstructions()),
                     const SizedBox(height: AppSpacing.md),
                     PrimaryButton(label: 'Start cooking', onPressed: () {}),
                   ],
@@ -108,6 +120,36 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Ingredients (scaled by the serves stepper) followed by the instructions
+  /// block — all from the API record. Falls back to a message when the API
+  /// record has neither (null-safety, deck p. 76–78).
+  Widget _buildIngredientsAndInstructions() {
+    final hasInstructions = _recipe.instructions != null;
+    final itemCount = _recipe.ingredients.length + (hasInstructions ? 1 : 0);
+    if (itemCount == 0) {
+      return Center(
+        child: Text(
+          'No details available for this recipe.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      );
+    }
+    return ListView.builder(
+      physics: const ClampingScrollPhysics(),
+      itemCount: itemCount,
+      itemBuilder: (context, index) {
+        if (index < _recipe.ingredients.length) {
+          final ingredient = _recipe.ingredients[index];
+          return _IngredientRow(
+            name: ingredient.name,
+            amount: ingredient.amountFor(_serves),
+          );
+        }
+        return _InstructionsBlock(text: _recipe.instructions!);
+      },
     );
   }
 
@@ -226,15 +268,21 @@ class _IngredientsHeader extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text.rich(
-          TextSpan(
-            text: 'Ingredients',
-            style: textTheme.titleMedium,
-            children: [
-              TextSpan(text: '  $serves serves', style: textTheme.bodySmall),
-            ],
+        // Expanded + ellipsis so the header never overflows narrow screens.
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              text: 'Ingredients',
+              style: textTheme.titleMedium,
+              children: [
+                TextSpan(text: '  $serves serves', style: textTheme.bodySmall),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
+        const SizedBox(width: AppSpacing.sm),
         Container(
           decoration: BoxDecoration(
             border: Border.all(color: AppColors.border),
@@ -257,6 +305,27 @@ class _IngredientsHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _InstructionsBlock extends StatelessWidget {
+  final String text;
+  const _InstructionsBlock({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Instructions', style: textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.sm),
+          Text(text, style: textTheme.bodyMedium),
+        ],
+      ),
     );
   }
 }

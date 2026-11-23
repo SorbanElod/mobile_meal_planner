@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Network access for the recipe API. In main (not only debug) so
+         profile/release builds and the demo work too. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:label="mobile_meal_planner"
         android:name="${applicationName}"

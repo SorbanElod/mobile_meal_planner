@@ -8,8 +8,18 @@ import '../models/recipe.dart';
 abstract class RecipeRepository {
   /// Searches recipes; an empty [query] returns the default list.
   /// [cancelToken] lets the caller abort an in-flight search (deck p. 63).
-  Future<List<Recipe>> getRecipes({String query = '', CancelToken? cancelToken});
+  Future<RecipesResult> getRecipes({String query = '', CancelToken? cancelToken});
 
   /// Full record for one recipe — e.g. to resolve a favorited id.
   Future<Recipe?> getRecipeById(String id, {CancelToken? cancelToken});
+}
+
+/// Result of a list load: the recipes, plus whether they came from the local
+/// cache (offline) instead of the network — this drives the offline banner
+/// in the UI (deck p. 110–111).
+class RecipesResult {
+  final List<Recipe> recipes;
+  final bool fromCache;
+
+  const RecipesResult(this.recipes, {this.fromCache = false});
 }

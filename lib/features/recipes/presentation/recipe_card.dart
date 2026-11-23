@@ -1,37 +1,76 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/favorite_button.dart';
+import '../../favorites/providers/favorites_provider.dart';
 import '../models/recipe.dart';
 
-/// One reusable, data-driven recipe card: photo + favorite overlay.
-/// Works with any [Recipe], is screen-independent, and reports taps
-/// upward via [onTap] (wired to navigation in MP-05).
-class RecipeCard extends StatelessWidget {
+/// One reusable, data-driven recipe card: photo + shared favorite overlay.
+/// Works with any [Recipe], is screen-independent; card taps go up via
+/// [onTap] (navigation), heart taps toggle the shared favorites provider.
+class RecipeCard extends ConsumerWidget {
   final Recipe recipe;
   final VoidCallback? onTap;
 
   const RecipeCard({super.key, required this.recipe, this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // select() rebuilds the heart only when THIS recipe's favorite state flips.
+    final isFavorite = ref.watch(
+      favoritesProvider.select(
+        (fav) => fav.value?.contains(recipe.id) ?? false,
+      ),
+    );
     return GestureDetector(
       onTap: onTap,
-      child: Stack(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: AppRadius.md,
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: _buildImage(recipe.imageUrl),
-            ),
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: AppRadius.md,
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: _buildImage(recipe.imageUrl),
+                ),
+              ),
+              Positioned(
+                top: AppSpacing.sm,
+                right: AppSpacing.sm,
+                child: FavoriteButton(
+                  isFavorite: isFavorite,
+                  onTap: () =>
+                      ref.read(favoritesProvider.notifier).toggle(recipe.id),
+                ),
+              ),
+            ],
           ),
-          const Positioned(
-            top: AppSpacing.sm,
-            right: AppSpacing.sm,
-            child: FavoriteButton(),
+          const SizedBox(height: AppSpacing.sm),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  recipe.title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  recipe.subtitle,
+                  style: Theme.of(context).textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ],
       ),
