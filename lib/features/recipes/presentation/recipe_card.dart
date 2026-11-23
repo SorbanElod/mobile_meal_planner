@@ -27,22 +27,49 @@ class RecipeCard extends ConsumerWidget {
     );
     return GestureDetector(
       onTap: onTap,
-      child: Stack(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: AppRadius.md,
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: _buildImage(recipe.imageUrl),
-            ),
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: AppRadius.md,
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: _buildImage(recipe.imageUrl),
+                ),
+              ),
+              Positioned(
+                top: AppSpacing.sm,
+                right: AppSpacing.sm,
+                child: FavoriteButton(
+                  isFavorite: isFavorite,
+                  onTap: () =>
+                      ref.read(favoritesProvider.notifier).toggle(recipe.id),
+                ),
+              ),
+            ],
           ),
-          Positioned(
-            top: AppSpacing.sm,
-            right: AppSpacing.sm,
-            child: FavoriteButton(
-              isFavorite: isFavorite,
-              onTap: () =>
-                  ref.read(favoritesProvider.notifier).toggle(recipe.id),
+          const SizedBox(height: AppSpacing.sm),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  recipe.title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  recipe.subtitle,
+                  style: Theme.of(context).textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ],

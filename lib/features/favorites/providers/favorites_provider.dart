@@ -1,13 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/storage/prefs.dart';
 import '../../recipes/models/recipe.dart';
 import '../../recipes/providers/recipes_provider.dart';
 import '../data/favorites_repository.dart';
-
-final sharedPreferencesProvider = Provider<SharedPreferencesAsync>(
-  (_) => SharedPreferencesAsync(),
-);
 
 final favoritesRepositoryProvider = Provider<FavoritesRepository>(
   (ref) => SharedPreferencesFavoritesRepository(

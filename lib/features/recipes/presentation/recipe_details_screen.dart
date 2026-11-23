@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/favorite_button.dart';
+import '../../../core/widgets/overlay_icon_button.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../favorites/providers/favorites_provider.dart';
 import '../models/recipe.dart';
@@ -43,37 +44,41 @@ class _RecipeDetailsScreenState extends ConsumerState<RecipeDetailsScreen> {
               fit: StackFit.expand,
               children: [
                 _buildHeroImage(_recipe.imageUrl),
+                // SafeArea keeps the controls below the status bar; the
+                // image itself stays edge-to-edge underneath.
                 Positioned(
-                  top: AppSpacing.sm,
-                  left: AppSpacing.sm,
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      color: AppColors.textPrimary,
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          OverlayIconButton(
+                            icon: Icons.arrow_back,
+                            onTap: () => Navigator.of(context).pop(),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              FavoriteButton(
+                                isFavorite: isFavorite,
+                                onTap: () => ref
+                                    .read(favoritesProvider.notifier)
+                                    .toggle(_recipe.id),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              OverlayIconButton(
+                                icon: Icons.more_horiz,
+                                onTap: () {},
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ),
-                Positioned(
-                  top: AppSpacing.sm,
-                  right: AppSpacing.sm,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      FavoriteButton(
-                        isFavorite: isFavorite,
-                        onTap: () => ref
-                            .read(favoritesProvider.notifier)
-                            .toggle(_recipe.id),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.more_horiz,
-                          color: AppColors.textPrimary,
-                        ),
-                        onPressed: () {},
-                      ),
-                    ],
                   ),
                 ),
               ],
@@ -263,15 +268,21 @@ class _IngredientsHeader extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text.rich(
-          TextSpan(
-            text: 'Ingredients',
-            style: textTheme.titleMedium,
-            children: [
-              TextSpan(text: '  $serves serves', style: textTheme.bodySmall),
-            ],
+        // Expanded + ellipsis so the header never overflows narrow screens.
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              text: 'Ingredients',
+              style: textTheme.titleMedium,
+              children: [
+                TextSpan(text: '  $serves serves', style: textTheme.bodySmall),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
+        const SizedBox(width: AppSpacing.sm),
         Container(
           decoration: BoxDecoration(
             border: Border.all(color: AppColors.border),
